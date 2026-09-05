@@ -1,0 +1,19 @@
+# Archivos fuente / material de trabajo — no forman parte del sitio publicado
+*.pdf
+WhatsApp Image*.jpeg
+WhatsApp Image*.jpg
+/Logo.png
+
+# Páginas de prueba y diagnóstico usadas durante el desarrollo
+diagnostico.html
+prueba-video.html
+test-js.html
+
+# Configuración de herramientas locales, sin relación con el sitio
+.claude/
+.agents/
+skills-lock.json
+
+# Sistema
+.DS_Store
+Thumbs.db

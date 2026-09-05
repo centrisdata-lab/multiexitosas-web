@@ -1,0 +1,1018 @@
+/* =========================================================
+   MULTIEXITOSAS — Capa cinematográfica
+   Reutiliza los tokens de color/espaciado definidos en style.css.
+   Todo lo de este archivo es aditivo: no redefine clases existentes.
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   PALETA DE MARCA (extraída del logo real)
+   Los tonos del logo son muy saturados: usados en crudo sobre
+   interfaz se ven infantiles y no alcanzan contraste de texto.
+   Cada color tiene dos versiones:
+     --marca-*        tono puro del logo (para manchas de color,
+                      iconos grandes, acentos sobre fondo oscuro)
+     --marca-*-ui     versión oscurecida, ratio >= 4.5:1 sobre
+                      blanco (apta para texto y bordes finos)
+   --------------------------------------------------------- */
+:root {
+  --marca-verde:      #40A030;  --marca-verde-ui:    #37812B;
+  --marca-oliva:      #80B030;  --marca-oliva-ui:    #5C7D26;
+  --marca-amarillo:   #F0E030;  --marca-amarillo-ui: #7B720C;
+  --marca-naranja:    #F0A040;  --marca-naranja-ui:  #A56211;
+  --marca-magenta:    #E02080;  --marca-magenta-ui:  #D3237B;
+  --marca-azul:       #4060A0;  --marca-azul-ui:     #4060A0;
+  --marca-celeste:    #50A0D0;  --marca-celeste-ui:  #3178A2;
+  --marca-morado:     #802070;  --marca-morado-ui:   #802070;
+  --marca-marron:     #906030;  --marca-marron-ui:   #906030;
+}
+
+/* ---------- Cursor personalizado (solo desktop, ver JS para el gate) ---------- */
+.cine-cursor {
+  position: fixed; top: 0; left: 0; z-index: 3000;
+  width: 26px; height: 26px; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.08);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  transition: width .22s ease, height .22s ease, background .22s ease, border-color .22s ease, opacity .2s ease;
+  mix-blend-mode: difference;
+  opacity: 0;
+}
+.cine-cursor.visible { opacity: 1; }
+.cine-cursor.cine-cursor-hover {
+  width: 52px; height: 52px;
+  background: rgba(217,164,65,0.25);
+  border-color: var(--dorado-400);
+}
+html.cine-has-custom-cursor, html.cine-has-custom-cursor * { cursor: none !important; }
+
+/* ---------- Sistema de capas de video reutilizable ---------- */
+.cine-video-layer {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden; /* contiene el scale del video: sin esto desborda el viewport */
+  background: var(--verde-900);
+}
+.hero { overflow: hidden; }
+.cine-video {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: center;
+  display: block;
+  will-change: transform;
+}
+/* Variantes de reutilización: el mismo archivo se siente distinto por contexto */
+.cine-video--zoom     { transform: scale(1.18); }
+.cine-video--warm     { filter: saturate(1.08) contrast(1.04); }
+.cine-video--cool     { filter: saturate(0.72) contrast(1.1) hue-rotate(-8deg) brightness(0.85); }
+.cine-video--mono     { filter: grayscale(0.75) contrast(1.12) brightness(0.8); }
+/* Escenas narrativas: conserva el tono cálido del taller y sube el contraste
+   para que el movimiento de las manos se lea bajo el velo oscuro. */
+.cine-video--escena   { filter: saturate(0.9) contrast(1.14) brightness(0.92); }
+.cine-video--soft     { filter: blur(2px) brightness(0.9); }
+.cine-video--reverse  { animation: cineReverseHint 0s; }
+.cine-video--bottom   { object-position: center 75%; }
+.cine-video--top      { object-position: center 22%; }
+
+/* ---------- Hero: video + canvas + overlay ---------- */
+.hero {
+  position: relative;
+  min-height: 100vh; min-height: 100svh;
+  /* Sin tope, el contenido estiraba el hero por encima del viewport y el
+     video 16:9 se ampliaba de más para cubrirlo, mostrando sólo un recorte. */
+  max-height: 100vh; max-height: 100svh;
+  display: flex; align-items: center;
+  padding-top: 88px; padding-bottom: 56px;
+  overflow: hidden;
+}
+/* El clip es 16:9 (1280x720). El hero es más alto que 16:9, así que
+   `cover` lo ampliaba ~1.8x y sólo se veía un recorte central: la caja
+   llenando la pantalla, sin margen para percibir el travelling.
+   Se ancla abajo para que la mesa —donde ocurre la acción— quede en cuadro. */
+#heroVideo { object-position: 50% 100%; transform-origin: 50% 100%; }
+.hero-badge {
+  background: rgba(255,255,255,0.08) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+  color: rgba(255,255,255,0.92) !important;
+  font-size: 11.5px !important; letter-spacing: .14em; text-transform: uppercase;
+  backdrop-filter: blur(8px);
+}
+/* Doble sombra: la difusa asienta el texto sobre el video, la corta protege
+   de los puntos claros puntuales (reflejos, pared blanca) donde el contraste
+   caía por debajo del mínimo legible. */
+.hero h1 {
+  text-shadow: 0 2px 8px rgba(6,14,9,0.85), 0 4px 38px rgba(6,14,9,0.65);
+}
+.hero .lead { text-shadow: 0 1px 6px rgba(6,14,9,0.9), 0 2px 22px rgba(6,14,9,0.6); }
+.hero-stat strong, .hero-stat span { text-shadow: 0 1px 6px rgba(6,14,9,0.9); }
+/* En pantallas de poca altura (portátiles de 768px o menos) el hero no cabe:
+   se compacta la tipografía y los espacios en vez de dejar que desborde. */
+@media (max-height: 780px) and (min-width: 861px) {
+  /* Alinear arriba: centrado dejaba un hueco muerto sobre el título y
+     empujaba las estadísticas fuera del viewport. */
+  .hero { padding-top: 100px; padding-bottom: 28px; align-items: flex-start; }
+  .hero-inner { align-items: start; }
+  .hero h1 { font-size: clamp(28px, 3.4vw, 44px); }
+  .hero p.lead { font-size: 15.5px; margin-bottom: .8em; }
+  .hero-badge { margin-bottom: 14px; }
+  .hero-actions { margin-top: 20px; }
+  .hero-stats { margin-top: 24px; gap: 24px; }
+  .hero-stat strong { font-size: 21px; }
+  .hero-stat span { font-size: 12px; }
+  .hero-inner { gap: 32px; }
+  .hero .flow-card { padding: 16px; }
+  .hero .mini-card { padding: 11px 14px; }
+  .hero .mini-card .icon { width: 34px; height: 34px; font-size: 16px; }
+  .mini-card-stack { gap: 8px; }
+}
+
+/* Máscaras para el reveal por líneas del título */
+.cine-line-mask { display: block; overflow: hidden; padding-bottom: 0.1em; }
+.cine-line-inner { display: block; will-change: transform; }
+
+/* El hero arranca oculto y sólo se muestra cuando la timeline de apertura
+   está lista. Sin esto el navegador pinta el hero terminado y la animación
+   ocurre "tarde", resultando imperceptible. */
+html.cine-intro-pending .hero-inner,
+html.cine-intro-pending .hero-scroll-cue { visibility: hidden; }
+.cine-hero-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  display: block; z-index: 1; pointer-events: none;
+}
+.cine-hero-fallback-bg {
+  position: absolute; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse at 20% 25%, rgba(217,164,65,0.16), transparent 55%),
+    radial-gradient(ellipse at 82% 20%, rgba(107,51,87,0.13), transparent 50%),
+    radial-gradient(ellipse at 50% 90%, rgba(60,133,98,0.18), transparent 60%);
+}
+/* El video del hero es luminoso (taller con luz de día): el velo debe ser más
+   profundo que en un plano oscuro para sostener el texto blanco encima. */
+/* Un solo gradiente: dos apilados sumaban hasta 85% de opacidad y el video
+   quedaba prácticamente oculto. Éste protege la columna del texto y deja
+   la escena visible en el resto del encuadre. */
+.cine-hero-overlay {
+  position: absolute; inset: 0; z-index: 2;
+  background:
+    linear-gradient(100deg,
+      rgba(10,22,15,0.93) 0%,
+      rgba(10,22,15,0.88) 30%,
+      rgba(10,22,15,0.55) 48%,
+      rgba(10,22,15,0.12) 68%,
+      rgba(10,22,15,0.04) 100%);
+  pointer-events: none;
+}
+/* Franja inferior mínima, sólo para asentar las estadísticas del hero. */
+.cine-hero-overlay::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 30%;
+  background: linear-gradient(180deg, transparent, rgba(10,22,15,0.42));
+}
+.hero .container.hero-inner { position: relative; z-index: 3; }
+.hero-scroll-cue { z-index: 3; }
+.hero-scroll-cue {
+  position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+  z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: rgba(255,255,255,0.6); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase;
+}
+.hero-scroll-cue .line { width: 1px; height: 30px; background: linear-gradient(rgba(255,255,255,0.7), transparent); animation: cineScrollCue 1.8s ease-in-out infinite; }
+@keyframes cineScrollCue { 0% { transform: scaleY(0); transform-origin: top; opacity: 0; } 40% { transform: scaleY(1); transform-origin: top; opacity: 1; } 100% { transform: scaleY(1); transform-origin: bottom; opacity: 0; } }
+
+/* ---------- Secciones con video de fondo ---------- */
+.cine-has-video { position: relative; overflow: hidden; }
+.cine-has-video > .container { position: relative; z-index: 3; }
+.cine-section-veil { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.cine-section-veil--dark {
+  background:
+    linear-gradient(180deg, var(--verde-900) 0%, rgba(18,39,28,0.90) 22%, rgba(18,39,28,0.86) 78%, var(--verde-900) 100%);
+}
+/* El banner es un grid de 2 columnas: las capas de video se sacan del flujo
+   para cubrir todo el bloque en vez de ocupar una celda del grid. */
+.green-banner.cine-has-video > .cine-video-layer,
+.green-banner.cine-has-video > .cine-section-veil {
+  position: absolute; inset: 0; grid-column: unset; grid-row: unset;
+}
+.green-banner.cine-has-video { border-radius: var(--radius-lg); }
+.green-banner-copy, .green-banner.cine-has-video > .btn { position: relative; z-index: 3; }
+.cine-section-veil--green {
+  background:
+    linear-gradient(100deg, rgba(16,45,30,0.94) 0%, rgba(16,45,30,0.86) 45%, rgba(16,45,30,0.66) 100%);
+}
+.cine-section-veil--finale {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(18,39,28,0.55) 0%, rgba(18,39,28,0.86) 60%, var(--verde-900) 100%),
+    linear-gradient(180deg, var(--verde-900) 0%, transparent 25%, transparent 70%, var(--verde-900) 100%);
+}
+.cine-scenes-veil {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(12,26,18,0.62) 0%, rgba(12,26,18,0.84) 55%, rgba(12,26,18,0.95) 100%);
+}
+.cine-video-layer--scenes { z-index: 0; }
+.cine-scenes-viewport > .cine-scene-net,
+.cine-scenes-viewport > .cine-scene { z-index: 2; }
+
+/* ---------- Navbar transparente sobre el hero ---------- */
+.navbar {
+  transition: background .5s ease, box-shadow .45s ease, border-color .45s ease, backdrop-filter .4s ease;
+}
+.nav-inner { transition: padding .45s cubic-bezier(.2,.7,.3,1); }
+/* ---------- Logo completo de marca ----------
+   Se muestra el Logo.png íntegro (árbol + wordmark multicolor + estrellas)
+   sin filtros de color: la identidad cromática debe respetarse tal cual. */
+.brand-logo {
+  height: 62px; width: auto; display: block;
+  transition: height .45s cubic-bezier(.2,.7,.3,1);
+}
+.navbar .brand { gap: 0; }
+.navbar .nav-inner { padding-top: 10px; padding-bottom: 10px; }
+.navbar.is-compact .brand-logo { height: 48px; }
+/* Sin recuadro: el logo tiene transparencia real y su eslogan es claro
+   (contraste 9.5 sobre el navbar oscuro, 10.6 sobre el footer verde).
+   Una caja blanca lo aislaba del diseño y además reducía su legibilidad. */
+.navbar.on-hero .brand-logo {
+  filter: drop-shadow(0 2px 12px rgba(0,0,0,0.55));
+}
+footer .brand-logo { height: 64px; }
+.mobile-panel .brand-logo { height: 46px; }
+.brand-footer { display: inline-block; }
+
+/* El logo está diseñado para fondo claro: su tronco marrón —que forma la
+   letra M— tiene contraste 1.59 sobre verde oscuro y desaparece, dejando
+   leer "ULTIEXITOSAS". La barra se mantiene clara en todo el sitio para
+   que la marca se vea tal como fue diseñada, sin recuadros ni parches. */
+.navbar,
+.navbar.on-hero {
+  background: rgba(252, 251, 249, 0.92) !important;
+  border-bottom: 1px solid rgba(18,39,28,0.07) !important;
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 1px 18px rgba(18,39,28,0.07);
+}
+.navbar.on-hero .brand-logo { filter: none; }
+.navbar .nav-links a,
+.navbar.on-hero .nav-links a { color: var(--gris-700); text-shadow: none; }
+.navbar .nav-links a:hover,
+.navbar.on-hero .nav-links a:hover { background: var(--verde-100); color: var(--verde-700); }
+.navbar.on-hero .btn-outline { border-color: var(--gris-300); color: var(--gris-900); }
+.navbar.on-hero .btn-outline:hover { border-color: var(--verde-600); color: var(--verde-700); background: transparent; }
+.navbar.on-hero .hamburger span { background: var(--gris-900); }
+
+.brand-mark-img { transition: height .45s cubic-bezier(.2,.7,.3,1); }
+/* Compactación progresiva al salir del hero */
+.navbar.is-compact .nav-inner { padding-top: 8px; padding-bottom: 8px; }
+.navbar.is-compact .brand-mark-img { height: 30px; }
+
+/* El bloque de navbar oscuro sobre el hero se retiró: la barra es clara en
+   todo el sitio para que el logo se lea con sus colores originales. */
+/* Fuera del hero (fondo claro) el subtítulo también estaba muy tenue. */
+.brand small { color: var(--gris-700); }
+
+/* Tarjetas del hero integradas al video (vidrio, no bloques blancos) */
+.hero .flow-card {
+  background: rgba(14, 30, 20, 0.52);
+  border-color: rgba(255,255,255,0.20);
+  backdrop-filter: blur(18px) saturate(130%);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.30);
+}
+.hero .flow-card strong { color: rgba(255,255,255,.82) !important; }
+.hero .flow-step span { color: #fff; text-shadow: 0 1px 6px rgba(6,14,9,.7); }
+.hero .flow-arrow { color: rgba(255,255,255,.55); }
+/* Las 4 etapas deben caber en una sola fila: si envuelven, se rompe la lectura. */
+.hero .flow-steps { flex-wrap: nowrap; gap: 4px; }
+.hero .flow-step { min-width: 0; }
+.hero .flow-step .dot { width: 36px; height: 36px; font-size: 15px; }
+.hero .flow-step span { font-size: 11.5px; }
+.hero .flow-arrow { font-size: 13px; flex-shrink: 0; }
+/* El vidrio al 9% no daba base suficiente: sobre la zona clara del video el
+   subtítulo caía a 1.9 de contraste. Se oscurece la base y se fuerza el color
+   del texto, que style.css sobrescribía con tonos oscuros de marca. */
+.hero .mini-card {
+  background: rgba(14, 30, 20, 0.52);
+  backdrop-filter: blur(18px) saturate(130%);
+  border: 1px solid rgba(255,255,255,0.20);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.32);
+  color: #fff;
+}
+.hero .mini-card .txt strong {
+  color: #fff !important;
+  text-shadow: 0 1px 6px rgba(6,14,9,.7);
+}
+.hero .mini-card .txt span {
+  color: rgba(255,255,255,0.86) !important;
+  text-shadow: 0 1px 6px rgba(6,14,9,.7);
+}
+/* La marca dentro del vidrio necesita base clara: sobre el fondo oscuro
+   sus trazos de color quedaban apagados. */
+.hero .mini-card .icon {
+  background: rgba(255,255,255,0.92) !important;
+  border-radius: 11px;
+}
+.hero .mini-card .icon svg { width: 76%; height: 76%; }
+
+/* ---------- Escenas narrativas pineadas ---------- */
+.cine-scenes {
+  position: relative;
+  height: 520vh;
+  background: linear-gradient(180deg, var(--verde-900), var(--verde-800) 40%, var(--verde-900));
+}
+.cine-scenes-viewport {
+  position: sticky; top: 0; height: 100vh; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.cine-scene-net {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.cine-scene {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 18px;
+  opacity: 0; pointer-events: none;
+  padding: 0 24px; text-align: center;
+}
+.cine-scene .cine-scene-label {
+  font-size: 12.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--dorado-400);
+}
+.cine-scene h2 {
+  font-size: clamp(24px, 4.4vw, 46px); color: #fff; max-width: 780px; margin: 0;
+  text-shadow: 0 2px 24px rgba(8,18,12,0.85), 0 0 60px rgba(8,18,12,0.7);
+}
+/* El texto vive en una banda propia para no chocar con el núcleo de la red */
+.cine-scene .cine-scene-copy {
+  background: radial-gradient(ellipse at center, rgba(8,18,12,0.88) 0%, rgba(8,18,12,0.72) 55%, transparent 100%);
+  padding: 34px 48px; border-radius: 24px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.cine-scene-core {
+  width: 84px; height: 84px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--dorado-400), var(--dorado-500) 60%, var(--verde-800));
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 60px rgba(217,164,65,0.35);
+}
+.cine-scene-core img { width: 46px; height: auto; }
+
+/* ---------- Nodos genéricos (compartidos: escenas, red conecta, final) ---------- */
+.cine-net-wrap { position: absolute; inset: 0; }
+.cine-net-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cine-line {
+  fill: none; stroke: rgba(255,255,255,0.16); stroke-width: 1.3;
+  transition: stroke .2s ease, stroke-width .2s ease;
+}
+.cine-line.cine-line-active { stroke: var(--dorado-400); stroke-width: 2; }
+
+.cine-node {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  transition: opacity .25s ease;
+}
+.cine-node .cine-node-dot {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.25);
+  display: flex; align-items: center; justify-content: center; font-size: 19px;
+  backdrop-filter: blur(4px);
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.cine-node.cine-node-sponsor .cine-node-dot { width: 38px; height: 38px; font-size: 16px; border-color: rgba(217,164,65,0.4); }
+.cine-node.cine-node-core .cine-node-dot {
+  width: 68px; height: 68px; font-size: 26px;
+  background: radial-gradient(circle at 35% 30%, var(--dorado-400), var(--dorado-500) 65%, var(--verde-800));
+  border-color: transparent; box-shadow: 0 0 40px rgba(217,164,65,0.4);
+}
+.cine-node span.cine-node-label {
+  font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,0.75);
+  white-space: nowrap; opacity: 0; transform: translateY(-2px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.cine-node:hover .cine-node-dot, .cine-node:focus-visible .cine-node-dot {
+  background: rgba(217,164,65,0.22); border-color: var(--dorado-400);
+  box-shadow: 0 0 24px rgba(217,164,65,0.3);
+}
+.cine-node:hover span.cine-node-label, .cine-node:focus-visible span.cine-node-label { opacity: 1; transform: translateY(0); }
+.cine-node.cine-dim { opacity: .28; }
+
+.cine-tooltip {
+  position: absolute; z-index: 10; pointer-events: none;
+  background: var(--blanco); color: var(--gris-900);
+  border-radius: var(--radius-sm); padding: 10px 14px; max-width: 220px;
+  box-shadow: var(--shadow-lg); font-size: 12.5px; line-height: 1.4;
+  opacity: 0; transform: translate(-50%, 6px); transition: opacity .16s ease, transform .16s ease;
+}
+.cine-tooltip.visible { opacity: 1; transform: translate(-50%, -8px); }
+.cine-tooltip strong { display: block; font-size: 13px; margin-bottom: 2px; color: var(--verde-700); }
+
+/* ---------- Sección Propósito ---------- */
+.cine-purpose {
+  position: relative; height: 340vh;
+  background: linear-gradient(180deg, var(--verde-800), var(--verde-900));
+}
+.cine-purpose-viewport {
+  position: sticky; top: 0; height: 100vh;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.cine-word {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+  opacity: 0; padding: 0 24px; text-align: center;
+}
+.cine-word span.cine-word-text {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(40px, 10vw, 130px); color: #fff; letter-spacing: -0.01em; line-height: 1;
+}
+.cine-word.cine-word-final span.cine-word-text {
+  font-size: clamp(22px, 3.4vw, 40px); font-weight: 700; max-width: 760px; color: var(--dorado-400);
+}
+.cine-word-index { font-size: 13px; color: var(--dorado-400); font-weight: 700; letter-spacing: .1em; }
+
+/* ---------- Momento Conecta destacado ---------- */
+.cine-connect-moment {
+  position: relative;
+  background: var(--blanco); border: 1px solid var(--gris-100); border-radius: var(--radius-lg);
+  padding: 44px 32px; margin-bottom: 40px; overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.cine-connect-head { text-align: center; margin-bottom: 32px; }
+.cine-connect-head h3 { font-size: clamp(20px, 2.6vw, 28px); margin-bottom: 8px; }
+.cine-connect-stage {
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+  max-width: 640px; margin: 0 auto 28px;
+}
+.cine-connect-node { text-align: center; }
+.cine-connect-node .logo-circle {
+  width: 72px; height: 72px; font-size: 30px; border-radius: 20px; margin: 0 auto 12px;
+  display: flex; align-items: center; justify-content: center; background: var(--verde-50);
+  box-shadow: var(--shadow-sm);
+}
+.cine-connect-node strong { display: block; font-size: 15px; }
+.cine-connect-node span { font-size: 12.5px; color: var(--gris-500); }
+.cine-connect-line-wrap { position: relative; height: 3px; width: 100%; min-width: 40px; }
+.cine-connect-line-wrap svg { width: 100%; height: 40px; overflow: visible; position: absolute; top: -19px; left: 0; }
+.cine-connect-line-wrap .cine-connect-path {
+  stroke: var(--dorado-500); stroke-width: 2.5; fill: none;
+  stroke-dasharray: 240; stroke-dashoffset: 240;
+}
+/* Pulso viajero: la conexión se siente viva, no como un diagrama */
+.cine-connect-pulse { fill: var(--dorado-500); opacity: 0; }
+.cine-connect-node .logo-circle {
+  transition: transform .5s cubic-bezier(.2,.7,.3,1), box-shadow .5s ease;
+}
+.cine-connect-moment:hover .cine-connect-node .logo-circle {
+  transform: translateY(-4px); box-shadow: var(--shadow-md);
+}
+.cine-connect-need { text-align: center; font-size: 14.5px; color: var(--gris-700); max-width: 480px; margin: 0 auto 24px; }
+.cine-connect-need strong { color: var(--verde-700); }
+.cine-connect-cta { text-align: center; }
+
+/* ---------- Fundadora: reveal ---------- */
+.about-photo { clip-path: inset(0 0 0 0); overflow: hidden; }
+.about-photo img { will-change: transform; }
+
+/* ---------- Final cinematográfico ---------- */
+.cine-finale {
+  position: relative; overflow: hidden;
+  background: linear-gradient(175deg, var(--verde-900), var(--verde-800) 60%, var(--verde-900));
+  padding: 120px 0 100px; text-align: center; color: #fff;
+}
+.cine-finale-nodes { position: relative; height: 180px; max-width: 720px; margin: 0 auto 30px; }
+.cine-finale-word {
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(34px, 6vw, 64px);
+  color: #fff; margin: 0 0 6px;
+}
+.cine-finale-slogan { color: var(--dorado-400); font-size: 17px; font-weight: 600; margin-bottom: 26px; }
+.cine-finale-question { font-size: clamp(18px, 2.2vw, 24px); color: rgba(255,255,255,0.85); margin-bottom: 30px; }
+.cine-finale-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+/* ---------- Sección genérica: transición continua ---------- */
+/* will-change solo mientras la sección está animándose: dejarlo permanente
+   en 11 secciones reserva memoria GPU sin beneficio. Lo activa/desactiva el JS. */
+.cine-section.is-animating { will-change: opacity, transform, filter; }
+
+/* ---------- Descubre progresivo helper ---------- */
+.card-emp.cine-pending { opacity: 0; }
+
+/* ---------- Sistema de iconos de interfaz ---------- */
+.ui-ico {
+  width: 1.15em; height: 1.15em;
+  display: inline-block; vertical-align: -0.2em;
+  flex-shrink: 0;
+}
+.ui-ico-wrap { display: contents; }
+/* Contenedores donde el icono es el elemento principal, no un prefijo */
+.benefit-card .ic .ui-ico,
+.pillar .ic .ui-ico,
+.impact-mini .ic .ui-ico,
+.sponsor-card .ic .ui-ico,
+.card-event .cover .ui-ico,
+.empty-state .em .ui-ico,
+.wizard-success .ic .ui-ico,
+.flow-step .dot .ui-ico { width: 100%; height: 100%; vertical-align: middle; }
+.benefit-card .ic, .pillar .ic, .impact-mini .ic { padding: 12px; }
+.flow-step .dot { padding: 9px; }
+.card-event .cover .ui-ico { width: 46px; height: 46px; }
+.empty-state .em { display: inline-block; width: 46px; height: 46px; }
+.wizard-success .ic { display: inline-block; width: 58px; height: 58px; }
+.sponsor-card .ic { padding: 11px; }
+/* En botones y textos el icono acompaña, no domina */
+.btn .ui-ico, .chip .ui-ico, .chat-quick-btn .ui-ico,
+.contact-list .ui-ico, .meta-row .ui-ico, .event-date .ui-ico,
+.loc .ui-ico, .att .ui-ico, .badge-verde .ui-ico, .tag .ui-ico,
+.choice-btn .ui-ico { width: 1em; height: 1em; margin-right: .12em; }
+.modal-close .ui-ico, .chat-input-row button .ui-ico { width: 1.05em; height: 1.05em; margin: 0; }
+
+/* ---------- Acentos de marca por categoría ----------
+   Los colores del logo se distribuyen entre categorías en vez de
+   aparecer todos a la vez: identidad reconocible sin saturar. */
+/* Los iconos son emoji: el `color` no los afecta. El acento se expresa
+   con un halo detrás del icono y con la barra superior de la tarjeta. */
+.cat-pill .ic {
+  width: 52px; height: 52px; margin: 0 auto 10px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 14px; background: var(--gris-100);
+  transition: background .3s ease, transform .35s cubic-bezier(.2,.7,.3,1);
+}
+.cat-pill:hover .ic { transform: translateY(-2px) scale(1.06); }
+/* Los iconos SVG usan currentColor: el fondo queda suave y el trazo toma
+   la versión oscurecida del color de marca, legible sobre blanco. */
+.cat-pill .ic svg { width: 100%; height: 100%; display: block; }
+.cat-pill .ic { padding: 12px; }
+
+.cat-pill[data-acento="1"] .ic { background: rgba(64,160,48,0.13);  color: var(--marca-verde-ui); }
+.cat-pill[data-acento="2"] .ic { background: rgba(80,160,208,0.15); color: var(--marca-celeste-ui); }
+.cat-pill[data-acento="3"] .ic { background: rgba(224,32,128,0.11); color: var(--marca-magenta-ui); }
+.cat-pill[data-acento="4"] .ic { background: rgba(240,160,64,0.17); color: var(--marca-naranja-ui); }
+.cat-pill[data-acento="5"] .ic { background: rgba(128,32,112,0.12); color: var(--marca-morado-ui); }
+.cat-pill[data-acento="6"] .ic { background: rgba(64,96,160,0.13);  color: var(--marca-azul-ui); }
+.cat-pill[data-acento="7"] .ic { background: rgba(128,176,48,0.15); color: var(--marca-oliva-ui); }
+.cat-pill[data-acento="8"] .ic { background: rgba(144,96,48,0.14);  color: var(--marca-marron-ui); }
+
+/* Barra de color permanente arriba de cada categoría: hace visible la
+   paleta del logo aunque el icono sea un emoji con color propio. */
+.cat-pill[data-acento="1"] { border-top-color: var(--marca-verde); }
+.cat-pill[data-acento="2"] { border-top-color: var(--marca-celeste); }
+.cat-pill[data-acento="3"] { border-top-color: var(--marca-magenta); }
+.cat-pill[data-acento="4"] { border-top-color: var(--marca-naranja); }
+.cat-pill[data-acento="5"] { border-top-color: var(--marca-morado); }
+.cat-pill[data-acento="6"] { border-top-color: var(--marca-azul); }
+.cat-pill[data-acento="7"] { border-top-color: var(--marca-oliva); }
+.cat-pill[data-acento="8"] { border-top-color: var(--marca-marron); }
+
+.cat-pill { border-top: 3px solid transparent; transition: border-color .3s ease, transform .3s ease, box-shadow .3s ease; }
+.cat-pill[data-acento="1"]:hover { border-top-color: var(--marca-verde); }
+.cat-pill[data-acento="2"]:hover { border-top-color: var(--marca-celeste); }
+.cat-pill[data-acento="3"]:hover { border-top-color: var(--marca-magenta); }
+.cat-pill[data-acento="4"]:hover { border-top-color: var(--marca-naranja); }
+.cat-pill[data-acento="5"]:hover { border-top-color: var(--marca-morado); }
+.cat-pill[data-acento="6"]:hover { border-top-color: var(--marca-azul); }
+.cat-pill[data-acento="7"]:hover { border-top-color: var(--marca-oliva); }
+.cat-pill[data-acento="8"]:hover { border-top-color: var(--marca-marron); }
+
+/* La barra de acento de cada tarjeta toma el color de su categoría */
+.card-emp[data-acento="1"]::after { background: linear-gradient(90deg, var(--marca-verde), var(--marca-oliva)); }
+.card-emp[data-acento="2"]::after { background: linear-gradient(90deg, var(--marca-celeste), var(--marca-azul)); }
+.card-emp[data-acento="3"]::after { background: linear-gradient(90deg, var(--marca-magenta), var(--marca-morado)); }
+.card-emp[data-acento="4"]::after { background: linear-gradient(90deg, var(--marca-naranja), var(--marca-amarillo)); }
+.card-emp[data-acento="5"]::after { background: linear-gradient(90deg, var(--marca-morado), var(--marca-magenta)); }
+.card-emp[data-acento="6"]::after { background: linear-gradient(90deg, var(--marca-azul), var(--marca-celeste)); }
+.card-emp[data-acento="7"]::after { background: linear-gradient(90deg, var(--marca-oliva), var(--marca-verde)); }
+.card-emp[data-acento="8"]::after { background: linear-gradient(90deg, var(--marca-marron), var(--marca-naranja)); }
+
+/* Las estrellas del logo dan el acento dorado a los indicadores de impacto */
+.impact-stat strong { color: var(--marca-amarillo); }
+
+/* ---------- Marcas SVG (sustituyen a los emoji) ---------- */
+.card-emp .logo-circle svg,
+.cine-node-dot svg,
+.cine-connect-node .logo-circle svg,
+.profile-logo svg { width: 100%; height: 100%; display: block; }
+.card-emp .logo-circle { padding: 6px; overflow: hidden; }
+/* En la portada de color, la marca va sobre un disco claro translúcido para
+   que el círculo de fondo del SVG no choque con el degradado. */
+.cine-cover-mark {
+  display: flex; align-items: center; justify-content: center;
+  width: 72px; height: 72px; border-radius: 50%;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.22);
+  padding: 12px;
+}
+.cine-cover-mark svg { width: 100%; height: 100%; }
+.cine-cover-mark svg circle:first-child { fill: transparent; }
+
+/* Sobre fotografía la marca se reduce y se ancla a una esquina: centrada y
+   grande competía con el producto, que es lo que debe protagonizar. */
+.card-emp .cover[data-foto] { align-items: flex-end; justify-content: flex-end; padding: 12px; }
+.card-emp .cover[data-foto] .cine-cover-mark {
+  width: 52px; height: 52px; padding: 9px;
+  background: rgba(255,255,255,0.94);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.card-emp .cover[data-foto] { transition: transform .7s cubic-bezier(.2,.7,.3,1); }
+.card-emp:hover .cover[data-foto] { transform: scale(1.05); }
+.cine-node-dot { padding: 7px; }
+.cine-node.cine-node-core .cine-node-dot { padding: 10px; }
+.cine-connect-node .logo-circle { padding: 10px; }
+.profile-logo { padding: 12px; overflow: hidden; }
+
+/* ---------- Portadas fotográficas de eventos ---------- */
+.card-event .cover[data-foto] {
+  height: 168px;
+  transition: transform .7s cubic-bezier(.2,.7,.3,1);
+}
+.card-event { overflow: hidden; }
+.card-event:hover .cover[data-foto] { transform: scale(1.05); }
+
+/* ---------- Paleta de marca en la primera pantalla ----------
+   El color de la marca aparecía recién en la 3ª/4ª sección. Estos acentos
+   lo llevan a lo primero que ve el usuario, manteniendo el fondo sobrio. */
+
+/* Las 4 etapas del ecosistema: un color por paso, como en el wordmark */
+.hero .flow-step:nth-child(1) .dot { background: linear-gradient(150deg, var(--marca-celeste), #2E6E93); }
+.hero .flow-step:nth-child(3) .dot { background: linear-gradient(150deg, var(--marca-magenta), #A81760); }
+.hero .flow-step:nth-child(5) .dot { background: linear-gradient(150deg, var(--marca-naranja), #C97D18); }
+.hero .flow-step:nth-child(7) .dot { background: linear-gradient(150deg, var(--marca-verde), #2C7521); }
+.hero .flow-step .dot { color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.28); }
+
+/* Estadísticas del hero: cada cifra con un color del logo */
+.hero-stats .hero-stat:nth-child(1) strong { color: #7FD16E; }
+.hero-stats .hero-stat:nth-child(2) strong { color: #8CC7EA; }
+.hero-stats .hero-stat:nth-child(3) strong { color: var(--marca-amarillo); }
+
+/* Mini-tarjetas del hero: acento lateral por marca */
+.hero .mini-card { border-left: 3px solid transparent; }
+.hero .mini-card:nth-child(1) { border-left-color: var(--marca-celeste); }
+.hero .mini-card:nth-child(2) { border-left-color: var(--marca-verde); }
+.hero .mini-card:nth-child(3) { border-left-color: var(--marca-magenta); }
+
+/* Distintivo del hero con el dorado de las estrellas del logo */
+.hero-badge {
+  border-color: rgba(240,224,48,.45) !important;
+  color: #F4E67A !important;
+}
+
+/* Escenas narrativas: el rótulo rota por la paleta */
+.cine-scene[data-scene="1"] .cine-scene-label { color: var(--marca-celeste); }
+.cine-scene[data-scene="2"] .cine-scene-label { color: var(--marca-magenta); }
+.cine-scene[data-scene="3"] .cine-scene-label { color: var(--marca-naranja); }
+.cine-scene[data-scene="4"] .cine-scene-label { color: #9BD98C; }
+.cine-scene[data-scene="5"] .cine-scene-label { color: var(--marca-amarillo); }
+
+/* Encabezados de sección: el guion del eyebrow alterna color */
+.section-head .eyebrow::before { background: var(--marca-magenta); }
+#destacados .section-head .eyebrow { color: var(--marca-magenta-ui); }
+#destacados .section-head .eyebrow::before { background: var(--marca-magenta); }
+#explorar .section-head .eyebrow { color: var(--marca-celeste-ui); }
+#explorar .section-head .eyebrow::before { background: var(--marca-celeste); }
+#conecta .section-head .eyebrow { color: var(--marca-naranja-ui); }
+#conecta .section-head .eyebrow::before { background: var(--marca-naranja); }
+#eventos .section-head .eyebrow { color: var(--marca-azul-ui); }
+#eventos .section-head .eyebrow::before { background: var(--marca-azul); }
+#patrocinadores .section-head .eyebrow { color: var(--marca-morado-ui); }
+#patrocinadores .section-head .eyebrow::before { background: var(--marca-morado); }
+
+/* Etiquetas de las tarjetas: rotación en vez de un solo verde */
+.card-emp .tag:nth-of-type(1) { background: rgba(80,160,208,.13); color: var(--marca-celeste-ui); }
+.card-emp .tag:nth-of-type(2) { background: rgba(224,32,128,.10); color: var(--marca-magenta-ui); }
+.card-emp .tag:nth-of-type(3) { background: rgba(240,160,64,.16); color: var(--marca-naranja-ui); }
+
+/* ---------- Momentos de color a gran escala ----------
+   En vez de teñir más elementos pequeños, se da color a pocas piezas
+   grandes: se percibe mucho más colorido sin sumar ruido visual. */
+
+/* Propósito: cada palabra ocupa la pantalla con su color del wordmark */
+.cine-word:nth-child(1) .cine-word-text { color: #8CC7EA; }
+.cine-word:nth-child(2) .cine-word-text { color: #F4B269; }
+.cine-word:nth-child(3) .cine-word-text { color: #F27FB4; }
+.cine-word:nth-child(4) .cine-word-text { color: #9BD98C; }
+.cine-word-final .cine-word-text { color: var(--marca-amarillo) !important; }
+
+/* Fondo de la sección: halos de color muy suaves que dan vida al verde */
+.cine-purpose::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 45% at 18% 22%, rgba(80,160,208,.20), transparent 70%),
+    radial-gradient(ellipse 55% 40% at 82% 30%, rgba(224,32,128,.16), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 30% 82%, rgba(240,160,64,.16), transparent 70%),
+    radial-gradient(ellipse 55% 45% at 78% 78%, rgba(64,160,48,.18), transparent 70%);
+}
+.cine-purpose { position: relative; }
+.cine-purpose-viewport { position: relative; z-index: 1; }
+
+/* Sección de categorías: fondo con la paleta en lugar del verde plano */
+#categorias {
+  background:
+    radial-gradient(ellipse 45% 55% at 12% 20%, rgba(80,160,208,.13), transparent 68%),
+    radial-gradient(ellipse 40% 50% at 88% 25%, rgba(224,32,128,.10), transparent 68%),
+    radial-gradient(ellipse 45% 50% at 50% 92%, rgba(240,160,64,.12), transparent 68%),
+    var(--verde-50);
+}
+
+/* CTA final: degradado con los colores del logo, no sólo dorado */
+.final-cta {
+  background: linear-gradient(115deg, #F0C14B 0%, var(--marca-naranja) 42%, #EE7FB0 78%, #C86FC0 100%);
+}
+.final-cta h2, .final-cta p { color: #2A1A24 !important; }
+
+/* Impacto: halos de color sobre el fondo oscuro */
+#impacto .cine-section-veil--dark::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 45% 50% at 15% 30%, rgba(80,160,208,.16), transparent 70%),
+    radial-gradient(ellipse 40% 45% at 85% 70%, rgba(224,32,128,.14), transparent 70%);
+}
+
+/* Final cinematográfico: acento de color tras el nombre de marca */
+.cine-finale::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background:
+    radial-gradient(ellipse 50% 40% at 25% 30%, rgba(240,160,64,.16), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 75% 65%, rgba(80,160,208,.16), transparent 70%);
+}
+.cine-finale-slogan { color: var(--marca-amarillo); }
+
+/* Banner de negocios verdes: matiz de paleta sobre el velo verde */
+.cine-section-veil--green {
+  background:
+    radial-gradient(ellipse 55% 60% at 85% 30%, rgba(80,160,208,.16), transparent 70%),
+    linear-gradient(100deg, rgba(16,45,30,0.94) 0%, rgba(16,45,30,0.86) 45%, rgba(16,45,30,0.62) 100%) !important;
+}
+
+/* ---------- Segunda ronda de color: zonas aún monocromas ---------- */
+
+/* Impacto: cada cifra con un color del wordmark, no todas doradas */
+.impact-grid .impact-stat:nth-child(1) strong { color: #7FD16E; }
+.impact-grid .impact-stat:nth-child(2) strong { color: #8CC7EA; }
+.impact-grid .impact-stat:nth-child(3) strong { color: var(--marca-amarillo); }
+.impact-grid .impact-stat:nth-child(4) strong { color: #F2A0C4; }
+
+/* Modal de perfil: indicadores de impacto diferenciados */
+.impact-mini div:nth-child(1) { background: rgba(224,32,128,.08); }
+.impact-mini div:nth-child(2) { background: rgba(64,160,48,.10); }
+.impact-mini div:nth-child(3) { background: rgba(80,160,208,.10); }
+.impact-mini div:nth-child(1) .ic { color: var(--marca-magenta-ui); }
+.impact-mini div:nth-child(2) .ic { color: var(--marca-verde-ui); }
+.impact-mini div:nth-child(3) .ic { color: var(--marca-celeste-ui); }
+
+.gallery-row > div svg { width: 46%; height: auto; opacity: .78; }
+.gallery-row > div { display: flex; align-items: center; justify-content: center; }
+
+/* Galería del perfil: fondos alternos en vez de un verde repetido */
+.gallery-row div:nth-child(1) { background: rgba(80,160,208,.12); }
+.gallery-row div:nth-child(2) { background: rgba(240,160,64,.15); }
+.gallery-row div:nth-child(3) { background: rgba(224,32,128,.10); }
+
+/* Contactos del perfil: cada canal con su color */
+.contact-list a:nth-child(1) { border-left: 3px solid var(--marca-verde); }
+.contact-list a:nth-child(2) { border-left: 3px solid var(--marca-celeste); }
+.contact-list a:nth-child(3) { border-left: 3px solid var(--marca-magenta); }
+.contact-list a:nth-child(4) { border-left: 3px solid var(--marca-naranja); }
+
+/* Productos y servicios del perfil: chips alternos */
+.profile-products span:nth-child(3n+1) { background: rgba(64,160,48,.11);  color: var(--marca-verde-ui); }
+.profile-products span:nth-child(3n+2) { background: rgba(80,160,208,.13); color: var(--marca-celeste-ui); }
+.profile-products span:nth-child(3n+3) { background: rgba(240,160,64,.16); color: var(--marca-naranja-ui); }
+
+/* Wizard: la barra de progreso avanza cambiando de color por paso */
+.wizard-dot.active:nth-child(1) { background: var(--marca-celeste); }
+.wizard-dot.active:nth-child(2) { background: var(--marca-magenta); }
+.wizard-dot.active:nth-child(3) { background: var(--marca-naranja); }
+.wizard-dot.active:nth-child(4) { background: var(--marca-morado); }
+.wizard-dot.active:nth-child(5) { background: var(--marca-verde); }
+
+/* Categorías del explorador (píldoras de la sección Descubre) */
+.cat-grid .cat-pill:hover { box-shadow: var(--shadow-md); }
+
+/* Negocios verdes: las 3 tarjetas del bloque ambiental */
+#verdes .benefits-grid .benefit-card:nth-child(1) .ic { background: rgba(80,160,208,.14); color: var(--marca-celeste-ui); }
+#verdes .benefits-grid .benefit-card:nth-child(2) .ic { background: rgba(64,160,48,.13);  color: var(--marca-verde-ui); }
+#verdes .benefits-grid .benefit-card:nth-child(3) .ic { background: rgba(240,160,64,.17); color: var(--marca-naranja-ui); }
+
+/* Tarjetas de evento: franja inferior de color, como las de emprendimiento */
+.card-event { position: relative; }
+.card-event::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  opacity: .9; transition: height .4s cubic-bezier(.2,.7,.3,1);
+}
+.card-event:hover::after { height: 5px; }
+.grid-events .card-event:nth-child(1)::after { background: linear-gradient(90deg, var(--marca-verde), var(--marca-oliva)); }
+.grid-events .card-event:nth-child(2)::after { background: linear-gradient(90deg, var(--marca-naranja), var(--marca-amarillo)); }
+.grid-events .card-event:nth-child(3)::after { background: linear-gradient(90deg, var(--marca-magenta), var(--marca-morado)); }
+.grid-events .card-event:nth-child(4)::after { background: linear-gradient(90deg, var(--marca-azul), var(--marca-celeste)); }
+
+/* Bandeja de conversaciones: acento por hilo */
+.inbox-item:nth-child(1) { border-left: 3px solid var(--marca-verde); }
+.inbox-item:nth-child(2) { border-left: 3px solid var(--marca-celeste); }
+.inbox-item:nth-child(3) { border-left: 3px solid var(--marca-magenta); }
+
+/* Opciones del wizard al seleccionarse */
+.choice-btn.selected:nth-child(1) { border-color: var(--marca-celeste); background: rgba(80,160,208,.10); color: var(--marca-celeste-ui); }
+.choice-btn.selected:nth-child(2) { border-color: var(--marca-verde);   background: rgba(64,160,48,.10);  color: var(--marca-verde-ui); }
+.choice-btn.selected:nth-child(3) { border-color: var(--marca-naranja); background: rgba(240,160,64,.13); color: var(--marca-naranja-ui); }
+.choice-btn.selected:nth-child(4) { border-color: var(--marca-morado);  background: rgba(128,32,112,.09); color: var(--marca-morado-ui); }
+.choice-btn.selected:nth-child(5) { border-color: var(--marca-magenta); background: rgba(224,32,128,.09); color: var(--marca-magenta-ui); }
+
+/* Botón dorado del hero con el amarillo real de las estrellas */
+.btn-gold { background: linear-gradient(135deg, #E9BE4E, var(--dorado-500)); }
+
+/* ---------- Color de marca por tipo de oportunidad ----------
+   El color aquí es funcional: distingue de un vistazo qué busca cada
+   emprendimiento, en vez de repetir el mismo verde en toda la sección. */
+.opp-card { border-left: 4px solid var(--gris-300); }
+.opp-card[data-need="aliados"]      { border-left-color: var(--marca-verde); }
+.opp-card[data-need="clientes"]     { border-left-color: var(--marca-celeste); }
+.opp-card[data-need="proveedores"]  { border-left-color: var(--marca-naranja); }
+.opp-card[data-need="inversion"]    { border-left-color: var(--marca-morado); }
+.opp-card[data-need="colaboradores"]{ border-left-color: var(--marca-magenta); }
+
+.opp-card[data-need="aliados"] .opp-tag      { background: rgba(64,160,48,.13);  color: var(--marca-verde-ui); }
+.opp-card[data-need="clientes"] .opp-tag     { background: rgba(80,160,208,.15); color: var(--marca-celeste-ui); }
+.opp-card[data-need="proveedores"] .opp-tag  { background: rgba(240,160,64,.18); color: var(--marca-naranja-ui); }
+.opp-card[data-need="inversion"] .opp-tag    { background: rgba(128,32,112,.12); color: var(--marca-morado-ui); }
+.opp-card[data-need="colaboradores"] .opp-tag{ background: rgba(224,32,128,.11); color: var(--marca-magenta-ui); }
+
+/* Chips del explorador: cada filtro conserva su color al activarse */
+.chip[data-chip="verde"].active   { background: var(--marca-verde-ui);   border-color: var(--marca-verde-ui); }
+.chip[data-chip="nuevo"].active   { background: var(--marca-naranja-ui); border-color: var(--marca-naranja-ui); }
+.chip[data-chip="destacado"].active { background: var(--marca-morado-ui); border-color: var(--marca-morado-ui); }
+.chip[data-chip="circular"].active  { background: var(--marca-celeste-ui); border-color: var(--marca-celeste-ui); }
+#needFilterRow .chip[data-need="aliados"].active      { background: var(--marca-verde-ui);   border-color: var(--marca-verde-ui); }
+#needFilterRow .chip[data-need="clientes"].active     { background: var(--marca-celeste-ui); border-color: var(--marca-celeste-ui); }
+#needFilterRow .chip[data-need="proveedores"].active  { background: var(--marca-naranja-ui); border-color: var(--marca-naranja-ui); }
+#needFilterRow .chip[data-need="inversion"].active    { background: var(--marca-morado-ui);  border-color: var(--marca-morado-ui); }
+#needFilterRow .chip[data-need="colaboradores"].active{ background: var(--marca-magenta-ui); border-color: var(--marca-magenta-ui); }
+
+/* ---------- Beneficios y pilares: un color por tarjeta ---------- */
+.benefits-grid .benefit-card:nth-child(1) .ic { background: rgba(64,160,48,.13);  color: var(--marca-verde-ui); }
+.benefits-grid .benefit-card:nth-child(2) .ic { background: rgba(80,160,208,.15); color: var(--marca-celeste-ui); }
+.benefits-grid .benefit-card:nth-child(3) .ic { background: rgba(240,160,64,.18); color: var(--marca-naranja-ui); }
+.benefits-grid .benefit-card:nth-child(4) .ic { background: rgba(64,96,160,.13);  color: var(--marca-azul-ui); }
+.benefits-grid .benefit-card:nth-child(5) .ic { background: rgba(128,32,112,.12); color: var(--marca-morado-ui); }
+.benefits-grid .benefit-card:nth-child(6) .ic { background: rgba(224,32,128,.11); color: var(--marca-magenta-ui); }
+
+.about-pillars .pillar:nth-child(1) .ic { color: var(--marca-celeste-ui); }
+.about-pillars .pillar:nth-child(2) .ic { color: var(--marca-naranja-ui); }
+.about-pillars .pillar:nth-child(3) .ic { color: var(--marca-magenta-ui); }
+.about-pillars .pillar:nth-child(1) { background: rgba(80,160,208,.10); }
+.about-pillars .pillar:nth-child(2) { background: rgba(240,160,64,.12); }
+.about-pillars .pillar:nth-child(3) { background: rgba(224,32,128,.09); }
+.about-pillars .pillar:nth-child(1) span { color: var(--marca-celeste-ui); }
+.about-pillars .pillar:nth-child(2) span { color: var(--marca-naranja-ui); }
+.about-pillars .pillar:nth-child(3) span { color: var(--marca-magenta-ui); }
+
+/* ---------- Patrocinadores: un acento por aliado ---------- */
+.sponsor-grid .sponsor-card:nth-child(1) .ic { background: rgba(240,160,64,.18); color: var(--marca-naranja-ui); }
+.sponsor-grid .sponsor-card:nth-child(2) .ic { background: rgba(64,160,48,.13);  color: var(--marca-verde-ui); }
+.sponsor-grid .sponsor-card:nth-child(3) .ic { background: rgba(224,32,128,.11); color: var(--marca-magenta-ui); }
+.sponsor-grid .sponsor-card:nth-child(4) .ic { background: rgba(240,224,48,.20); color: var(--marca-amarillo-ui); }
+.sponsor-grid .sponsor-card:nth-child(5) .ic { background: rgba(128,176,48,.15); color: var(--marca-oliva-ui); }
+.sponsor-grid .sponsor-card:nth-child(6) .ic { background: rgba(64,96,160,.13);  color: var(--marca-azul-ui); }
+.sponsor-card { border-top: 3px solid transparent; }
+.sponsor-grid .sponsor-card:nth-child(1) { border-top-color: var(--marca-naranja); }
+.sponsor-grid .sponsor-card:nth-child(2) { border-top-color: var(--marca-verde); }
+.sponsor-grid .sponsor-card:nth-child(3) { border-top-color: var(--marca-magenta); }
+.sponsor-grid .sponsor-card:nth-child(4) { border-top-color: var(--marca-amarillo); }
+.sponsor-grid .sponsor-card:nth-child(5) { border-top-color: var(--marca-oliva); }
+.sponsor-grid .sponsor-card:nth-child(6) { border-top-color: var(--marca-azul); }
+.sponsor-card .tipo { color: inherit; }
+
+/* ---------- Propósito: cada palabra con su color ---------- */
+.cine-word:nth-child(1) .cine-word-index { color: var(--marca-celeste); }
+.cine-word:nth-child(2) .cine-word-index { color: var(--marca-naranja); }
+.cine-word:nth-child(3) .cine-word-index { color: var(--marca-magenta); }
+.cine-word:nth-child(4) .cine-word-index { color: var(--marca-oliva); }
+
+/* ---------- Fechas de eventos: rotación de color ---------- */
+.grid-events .card-event:nth-child(1) .event-date { background: rgba(64,160,48,.13);  color: var(--marca-verde-ui); }
+.grid-events .card-event:nth-child(2) .event-date { background: rgba(240,160,64,.18); color: var(--marca-naranja-ui); }
+.grid-events .card-event:nth-child(3) .event-date { background: rgba(224,32,128,.11); color: var(--marca-magenta-ui); }
+.grid-events .card-event:nth-child(4) .event-date { background: rgba(64,96,160,.13);  color: var(--marca-azul-ui); }
+
+/* ---------- Hover premium de tarjetas ---------- */
+.card-emp {
+  transition:
+    transform .5s cubic-bezier(.2,.7,.3,1),
+    box-shadow .5s cubic-bezier(.2,.7,.3,1),
+    border-color .4s ease;
+}
+.card-emp .cover {
+  overflow: hidden;
+  transition: transform .7s cubic-bezier(.2,.7,.3,1);
+}
+.card-emp .cover > span {
+  display: inline-block;
+  transition: transform .7s cubic-bezier(.2,.7,.3,1);
+}
+/* Franja de marca siempre visible (antes sólo en hover, así que la paleta
+   del logo permanecía oculta casi todo el tiempo). Crece al pasar el cursor. */
+.card-emp::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+  background: linear-gradient(90deg, var(--verde-500), var(--dorado-500));
+  transform: scaleY(1); transform-origin: bottom;
+  transition: height .45s cubic-bezier(.2,.7,.3,1), opacity .35s ease;
+  opacity: .85;
+}
+.card-emp:hover::after { height: 5px; opacity: 1; }
+.card-emp { position: relative; }
+.card-emp:hover { transform: translateY(-8px); box-shadow: var(--shadow-lg); }
+.card-emp:hover .cover { transform: scale(1.06); }
+.card-emp:hover .cover > span { transform: scale(1.14) rotate(-3deg); }
+.card-emp .logo-circle { transition: transform .5s cubic-bezier(.2,.7,.3,1); }
+.card-emp:hover .logo-circle { transform: translateY(-3px) scale(1.06); }
+.card-emp .actions .btn { transition: transform .35s ease, background .25s ease, border-color .25s ease, color .25s ease; }
+.card-emp:hover .actions .btn-primary { transform: translateY(-1px); }
+
+/* Atenuar las hermanas: enfoca la atención en la tarjeta activa */
+@media (hover: hover) {
+  .grid-emp:hover .card-emp:not(:hover) { opacity: .62; transform: scale(.986); }
+  .grid-emp .card-emp { transition:
+      transform .5s cubic-bezier(.2,.7,.3,1),
+      box-shadow .5s cubic-bezier(.2,.7,.3,1),
+      opacity .4s ease,
+      border-color .4s ease; }
+}
+
+/* Botones: microinteracción de feedback */
+.btn { transition: transform .28s cubic-bezier(.2,.7,.3,1), box-shadow .28s ease, background .22s ease, border-color .22s ease, color .22s ease; }
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(0) scale(.975); }
+
+/* =========================================================
+   RESPONSIVE / MODO LIVIANO
+   ========================================================= */
+/* Entre 861 y 1100px el logo completo + menú + 2 botones no caben:
+   se ajustan proporcionalmente en vez de desbordar. */
+@media (min-width: 861px) and (max-width: 1100px) {
+  .brand-logo { height: 50px; }
+  .navbar.is-compact .brand-logo { height: 42px; }
+  .nav-links a { padding: 8px 9px; font-size: 13.5px; }
+  .nav-inner { gap: 12px; }
+  .nav-cta .btn-sm { padding: 8px 13px; font-size: 12.5px; }
+}
+
+@media (max-width: 860px) {
+  .hero-scroll-cue { display: none; }
+  /* El CTA del navbar desbordaba el viewport y empujaba el hamburguesa fuera. */
+  .nav-cta .btn-primary { display: none; }
+  .nav-inner { gap: 12px; }
+  .brand small { display: none; }
+  .brand-logo { height: 46px; }
+  .navbar.is-compact .brand-logo { height: 40px; }
+
+  /* En pantalla estrecha el degradado lateral tapaba el video entero:
+     se cambia por uno vertical que deja respirar el paisaje arriba. */
+  .cine-hero-overlay {
+    background: linear-gradient(180deg,
+      rgba(12,26,18,0.55) 0%,
+      rgba(12,26,18,0.42) 28%,
+      rgba(12,26,18,0.72) 62%,
+      rgba(12,26,18,0.92) 100%) !important;
+  }
+  .hero { min-height: auto; padding-top: 120px; padding-bottom: 72px; }
+  .cine-video--zoom { transform: scale(1.05); }
+  /* En vertical se sube el foco hacia la mesa, donde ocurre la acción. */
+  #heroVideo { object-position: 50% 60%; }
+}
+
+@media (max-width: 768px) {
+  .cine-scenes { height: auto; }
+  .cine-scenes-viewport { position: relative; height: auto; min-height: 100vh; padding: 90px 0; flex-direction: column; }
+  .cine-scene { position: relative; inset: auto; opacity: 1 !important; margin-bottom: 60px; }
+  .cine-scene:last-child { margin-bottom: 0; }
+  .cine-video-layer--scenes { position: fixed; inset: 0; }
+  .cine-scenes-veil { position: fixed; }
+  .cine-scene-net { display: none; }
+
+  .cine-purpose { height: auto; }
+  .cine-purpose-viewport { position: relative; height: auto; min-height: auto; padding: 70px 0; flex-direction: column; }
+  .cine-word { position: relative; inset: auto; opacity: 1 !important; margin-bottom: 44px; }
+  .cine-word:last-child { margin-bottom: 0; }
+  .cine-word span.cine-word-text { font-size: clamp(32px, 14vw, 60px); }
+
+  .cine-connect-stage { grid-template-columns: 1fr; gap: 10px; }
+  .cine-connect-line-wrap { transform: rotate(90deg); height: 40px; margin: 4px auto; width: 60px; }
+
+  .cine-finale { padding: 80px 0 64px; }
+}
+
+@media (max-width: 640px) {
+  .cine-node .cine-node-dot { width: 38px; height: 38px; font-size: 16px; }
+  .cine-node.cine-node-core .cine-node-dot { width: 54px; height: 54px; font-size: 22px; }
+}
+
+/* prefers-reduced-motion: la lógica de apagado real vive en JS (rutas simplificadas
+   sin pin/scrub/canvas). Este bloque solo asegura que, si algo queda visible sin
+   animar, no bloquee la lectura del contenido. */
+@media (prefers-reduced-motion: reduce) {
+  .cine-scenes, .cine-purpose { height: auto; }
+  /* El viewport es flex row por defecto: sin cambiar la dirección las escenas
+     quedaban una AL LADO de otra, solapadas e ilegibles. */
+  .cine-scenes-viewport, .cine-purpose-viewport {
+    position: relative; height: auto; min-height: auto;
+    padding: 80px 0; flex-direction: column; gap: 0;
+  }
+  .cine-scene, .cine-word {
+    position: relative; inset: auto; opacity: 1 !important;
+    margin-bottom: 0; width: 100%;
+    padding: 64px 24px;
+  }
+  /* La red de nodos se posiciona en absoluto sobre un lienzo que aquí ya no
+     existe: sus nodos caían encima del texto. */
+  .cine-scene-net { display: none; }
+  .cine-scenes-veil { position: absolute; }
+  .cine-scene h2 { max-width: 720px; margin-inline: auto; }
+  .hero-scroll-cue .line { animation: none; }
+}
