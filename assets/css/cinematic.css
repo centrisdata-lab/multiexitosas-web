@@ -954,12 +954,15 @@ footer .brand-logo { height: 64px; }
 
   /* En pantalla estrecha el degradado lateral tapaba el video entero:
      se cambia por uno vertical que deja respirar el paisaje arriba. */
+  /* La banda del 28% coincide con el titular. Al aligerar las sombras de texto
+     en móvil, es este velo el que sostiene el contraste: oscurecerlo de forma
+     pareja se ve mucho mejor que una sombra marcada detrás de cada letra. */
   .cine-hero-overlay {
     background: linear-gradient(180deg,
-      rgba(12,26,18,0.55) 0%,
-      rgba(12,26,18,0.42) 28%,
-      rgba(12,26,18,0.72) 62%,
-      rgba(12,26,18,0.92) 100%) !important;
+      rgba(12,26,18,0.62) 0%,
+      rgba(12,26,18,0.60) 28%,
+      rgba(12,26,18,0.78) 62%,
+      rgba(12,26,18,0.93) 100%) !important;
   }
   /* El tope de 100vh existe para que el video 16:9 no se amplíe de más en
      escritorio. En móvil el contenido es mucho más alto que la pantalla, así
@@ -1013,6 +1016,15 @@ footer .brand-logo { height: 64px; }
   /* La portada del perfil se encogía y dejaba una muesca blanca junto al
      botón de cerrar en pantallas estrechas. */
   .profile-cover { width: 100%; flex: 0 0 auto; }
+  /* Las sombras del hero se calcularon para un titular de ~56px. En móvil la
+     tipografía baja a 32px pero el desenfoque seguía siendo absoluto (38px),
+     más ancho que el alto de las letras: se veía como una mancha rectangular
+     detrás del texto. Se reducen los radios manteniendo la sombra corta, que
+     es la que realmente sostiene el contraste sobre el video. */
+  .hero h1 { text-shadow: 0 1px 4px rgba(6,14,9,0.9), 0 2px 14px rgba(6,14,9,0.5); }
+  .hero .lead { text-shadow: 0 1px 3px rgba(6,14,9,0.9), 0 1px 10px rgba(6,14,9,0.45); }
+  .hero-stat strong, .hero-stat span { text-shadow: 0 1px 4px rgba(6,14,9,0.9); }
+
   .chip { min-height: 44px; padding-top: 0; padding-bottom: 0; display: inline-flex; align-items: center; }
   .btn-sm { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .modal-close, .mobile-close { min-width: 44px; min-height: 44px; }
