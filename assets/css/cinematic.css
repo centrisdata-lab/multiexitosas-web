@@ -1017,11 +1017,10 @@ footer .brand-logo { height: 64px; }
      botón de cerrar en pantallas estrechas. */
   .profile-cover { width: 100%; flex: 0 0 auto; }
   /* Las sombras del hero se calcularon para un titular de ~56px. En móvil la
-     tipografía baja a 32px pero el desenfoque seguía siendo absoluto (38px),
-     más ancho que el alto de las letras: se veía como una mancha rectangular
-     detrás del texto. Se reducen los radios manteniendo la sombra corta, que
-     es la que realmente sostiene el contraste sobre el video. */
-  .hero h1 { text-shadow: 0 1px 4px rgba(6,14,9,0.9), 0 2px 14px rgba(6,14,9,0.5); }
+     tipografía baja a 32px y el desenfoque, al ser absoluto, resultaba más
+     ancho que el alto de las letras. En el titular se quita del todo: el velo
+     reforzado de arriba ya sostiene el contraste sin ensuciar la tipografía. */
+  .hero h1 { text-shadow: none; }
   .hero .lead { text-shadow: 0 1px 3px rgba(6,14,9,0.9), 0 1px 10px rgba(6,14,9,0.45); }
   .hero-stat strong, .hero-stat span { text-shadow: 0 1px 4px rgba(6,14,9,0.9); }
 
