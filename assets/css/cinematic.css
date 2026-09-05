@@ -641,13 +641,43 @@ footer .brand-logo { height: 64px; }
 .profile-logo svg { width: 100%; height: 100%; display: block; }
 .card-emp .logo-circle { padding: 6px; overflow: hidden; }
 
-/* El cuadrado pequeño montado a caballo entre la portada y el texto venía del
-   diseño original, cuando la portada era un degradado plano y hacía de avatar.
-   Con fotografía real duplica la marca del círculo (.cine-cover-mark) y ensucia
-   el borde de la imagen, así que se retira y queda una sola marca por tarjeta.
-   El espacio negativo que lo montaba se anula para que el título no suba. */
-.card-emp .logo-row { display: none; }
-.card-emp .body { padding-top: 20px; }
+/* ---------- Cabecera de la tarjeta: marca junto al nombre ----------
+   El diseño original montaba la marca a caballo sobre la portada (patrón de
+   avatar, pensado para cuando el fondo era un degradado plano). Con fotografía
+   real quedaba cortada por el borde, tapaba el producto y competía con la
+   imagen. Ahora la marca baja al cuerpo y se alinea a la izquierda del nombre:
+   la foto queda limpia y el icono queda asociado a la identidad del
+   emprendimiento, que es su función.
+   Se usa grid sobre elementos que ya son hermanos en el HTML, sin tocar app.js. */
+.card-emp .body {
+  padding-top: 18px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 8px;
+}
+.card-emp .logo-row {
+  grid-column: 1; grid-row: 1 / span 2;
+  margin-top: 0; align-self: center;
+}
+.card-emp .body > h3       { grid-column: 2; grid-row: 1; align-self: end; }
+.card-emp .body > .tagline { grid-column: 2; grid-row: 2; align-self: start; }
+/* El resto del contenido ocupa el ancho completo, por debajo de la cabecera. */
+.card-emp .body > .desc,
+.card-emp .body > .meta-row,
+.card-emp .body > .tag-row,
+.card-emp .body > .actions { grid-column: 1 / -1; }
+.card-emp .body > .desc { margin-top: 2px; }
+
+/* La marca, más contenida que el disco de 52px que iba sobre la foto. */
+.card-emp .logo-circle {
+  width: 44px; height: 44px; border-radius: 12px;
+  flex-shrink: 0;
+}
+
+/* La portada queda solo con la fotografía y sus distintivos. */
+.card-emp .cover .cine-cover-mark { display: none; }
 /* En la portada de color, la marca va sobre un disco claro translúcido para
    que el círculo de fondo del SVG no choque con el degradado. */
 .cine-cover-mark {
