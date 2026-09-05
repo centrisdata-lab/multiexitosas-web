@@ -961,7 +961,15 @@ footer .brand-logo { height: 64px; }
       rgba(12,26,18,0.72) 62%,
       rgba(12,26,18,0.92) 100%) !important;
   }
-  .hero { min-height: auto; padding-top: 120px; padding-bottom: 72px; }
+  /* El tope de 100vh existe para que el video 16:9 no se amplíe de más en
+     escritorio. En móvil el contenido es mucho más alto que la pantalla, así
+     que ese tope recortaba el hero por arriba y se comía el titular. */
+  .hero {
+    min-height: auto;
+    max-height: none;
+    padding-top: 120px; padding-bottom: 72px;
+    align-items: flex-start;
+  }
   .cine-video--zoom { transform: scale(1.05); }
   /* En vertical se sube el foco hacia la mesa, donde ocurre la acción. */
   #heroVideo { object-position: 50% 60%; }
@@ -972,6 +980,12 @@ footer .brand-logo { height: 64px; }
   .cine-scenes-viewport { position: relative; height: auto; min-height: 100vh; padding: 90px 0; flex-direction: column; }
   .cine-scene { position: relative; inset: auto; opacity: 1 !important; margin-bottom: 60px; }
   .cine-scene:last-child { margin-bottom: 0; }
+  /* El video va fijo para dar sensación de parallax mientras se recorren las
+     escenas apiladas. Sin recortarlo a la sección, esa capa fija seguía
+     cubriendo TODA la pantalla en las secciones siguientes y dejaba el
+     directorio ilegible. `clip-path` confina al hijo fijo a la caja de la
+     sección sin quitarle el efecto. */
+  .cine-scenes { clip-path: inset(0); }
   .cine-video-layer--scenes { position: fixed; inset: 0; }
   .cine-scenes-veil { position: fixed; }
   .cine-scene-net { display: none; }
@@ -991,6 +1005,17 @@ footer .brand-logo { height: 64px; }
 @media (max-width: 640px) {
   .cine-node .cine-node-dot { width: 38px; height: 38px; font-size: 16px; }
   .cine-node.cine-node-core .cine-node-dot { width: 54px; height: 54px; font-size: 22px; }
+}
+
+/* Áreas táctiles: en pantalla táctil los chips de filtro quedaban en 36px,
+   por debajo del mínimo cómodo para el dedo (~44px). */
+@media (max-width: 860px) {
+  /* La portada del perfil se encogía y dejaba una muesca blanca junto al
+     botón de cerrar en pantallas estrechas. */
+  .profile-cover { width: 100%; flex: 0 0 auto; }
+  .chip { min-height: 44px; padding-top: 0; padding-bottom: 0; display: inline-flex; align-items: center; }
+  .btn-sm { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .modal-close, .mobile-close { min-width: 44px; min-height: 44px; }
 }
 
 /* prefers-reduced-motion: la lógica de apagado real vive en JS (rutas simplificadas
