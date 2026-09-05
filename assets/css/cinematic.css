@@ -46,6 +46,14 @@
 }
 html.cine-has-custom-cursor, html.cine-has-custom-cursor * { cursor: none !important; }
 
+/* Red de seguridad global: varias animaciones de entrada desplazan elementos
+   en X antes de asentarlos (patrocinadores, momento Conecta). Ese desfase
+   temporal ensanchaba el documento y producía scroll horizontal en toda la
+   página. `overflow-x: clip` lo contiene sin crear contexto de scroll —a
+   diferencia de `hidden`, no rompe `position: sticky` de los pines. */
+html { overflow-x: clip; }
+body { overflow-x: clip; }
+
 /* ---------- Sistema de capas de video reutilizable ---------- */
 .cine-video-layer {
   position: absolute; inset: 0; z-index: 0;
@@ -219,9 +227,50 @@ html.cine-intro-pending .hero-scroll-cue { visibility: hidden; }
    sin filtros de color: la identidad cromática debe respetarse tal cual. */
 .brand-logo {
   height: 62px; width: auto; display: block;
+  /* El logo es un flex item dentro de .brand/.nav-inner: al apretarse la barra
+     se encogía a lo ancho manteniendo el alto, deformando la marca hasta un 31%.
+     `flex-shrink:0` + la proporción explícita lo mantienen fiel siempre. */
+  flex-shrink: 0;
+  aspect-ratio: 465 / 120;
+  object-fit: contain;
   transition: height .45s cubic-bezier(.2,.7,.3,1);
 }
+/* El enlace contenedor tampoco debe encogerse por debajo de su contenido. */
+.navbar .brand, .mobile-panel .brand, footer .brand-footer { flex-shrink: 0; min-width: 0; }
 .navbar .brand { gap: 0; }
+
+/* ---------- Barra de navegación en anchos intermedios ----------
+   Entre 861px (donde se apaga la hamburguesa) y ~1280px, el logo + los 6
+   enlaces + los 2 botones no caben: la barra se salía hasta 199px y generaba
+   desplazamiento horizontal en TODA la página, en cualquier portátil.
+   En vez de forzar la hamburguesa en pantallas grandes, se compacta la barra
+   y se permite que el bloque de enlaces ceda espacio. */
+/* Ningún rótulo de navegación debe partirse en dos líneas: "Sobre nosotros"
+   lo hacía y aumentaba el alto de toda la barra. */
+@media (min-width: 861px) {
+  .nav-links a, .nav-cta .btn { white-space: nowrap; }
+  /* El contenido de la barra (logo + 6 enlaces + 2 botones) supera el ancho
+     máximo del contenedor entre ~1300 y 1400px: con `nowrap` el bloque de
+     botones se salía hasta 63px, quedando pegado al borde en 1366px, una
+     resolución de portátil muy común. Se permite que la fila ocupe todo el
+     ancho disponible y que sean los enlaces los que cedan espacio. */
+  .navbar .nav-inner { max-width: 100%; padding-left: max(24px, calc((100% - var(--container)) / 2));
+                       padding-right: max(24px, calc((100% - var(--container)) / 2)); }
+  .nav-links { flex-shrink: 1; min-width: 0; }
+}
+@media (min-width: 861px) and (max-width: 1300px) {
+  .navbar .nav-inner { gap: 12px; }
+  .nav-links { gap: 0; flex-shrink: 1; min-width: 0; }
+  .nav-links a { padding-left: 9px; padding-right: 9px; font-size: 14px; }
+  .nav-cta { flex-shrink: 0; gap: 8px; }
+}
+/* Por debajo de ~1120px lo que sobra es el botón secundario "Explorar", que
+   duplica un enlace ya presente en el menú. Se oculta y se compacta el resto. */
+@media (min-width: 861px) and (max-width: 1120px) {
+  .nav-cta .btn-outline { display: none; }
+  .nav-cta .btn-primary { font-size: 13.5px; padding-left: 15px; padding-right: 15px; }
+  .nav-links a { padding-left: 7px; padding-right: 7px; font-size: 13.5px; }
+}
 .navbar .nav-inner { padding-top: 10px; padding-bottom: 10px; }
 .navbar.is-compact .brand-logo { height: 48px; }
 /* Sin recuadro: el logo tiene transparencia real y su eslogan es claro
@@ -393,9 +442,19 @@ footer .brand-logo { height: 64px; }
   background: var(--blanco); color: var(--gris-900);
   border-radius: var(--radius-sm); padding: 10px 14px; max-width: 220px;
   box-shadow: var(--shadow-lg); font-size: 12.5px; line-height: 1.4;
-  opacity: 0; transform: translate(-50%, 6px); transition: opacity .16s ease, transform .16s ease;
+  /* `opacity: 0` por sí solo sigue ocupando caja: en reposo el tooltip quedaba
+     en left:-50px y estiraba el área de scroll, provocando desplazamiento
+     horizontal en tablet. `visibility` lo saca del cálculo sin perder la
+     transición. */
+  opacity: 0; visibility: hidden;
+  transform: translate(-50%, 6px);
+  transition: opacity .16s ease, transform .16s ease, visibility 0s linear .16s;
 }
-.cine-tooltip.visible { opacity: 1; transform: translate(-50%, -8px); }
+.cine-tooltip.visible {
+  opacity: 1; visibility: visible;
+  transform: translate(-50%, -8px);
+  transition: opacity .16s ease, transform .16s ease, visibility 0s;
+}
 .cine-tooltip strong { display: block; font-size: 13px; margin-bottom: 2px; color: var(--verde-700); }
 
 /* ---------- Sección Propósito ---------- */
@@ -1027,6 +1086,58 @@ footer .brand-logo { height: 64px; }
   .chip { min-height: 44px; padding-top: 0; padding-bottom: 0; display: inline-flex; align-items: center; }
   .btn-sm { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
   .modal-close, .mobile-close { min-width: 44px; min-height: 44px; }
+
+  /* iOS Safari hace zoom automático al enfocar un campo con tipografía menor
+     a 16px, y luego deja la página desplazada. 16px en los controles lo evita;
+     no afecta al resto de la tipografía. */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Rótulos en versalitas que quedaban en 11.5px: en pantalla pequeña es el
+     límite de lo cómodo, se suben a 12.5px conservando el estilo. */
+  /* La regla base del distintivo usa !important, así que aquí hace falta
+     igualarlo para poder subir el tamaño en pantalla pequeña. */
+  .hero-badge { font-size: 12.5px !important; }
+  .hero-scroll-cue { font-size: 12.5px; }
+
+  /* Los items de grid/flex traen `min-width: auto`: no bajan del ancho de su
+     contenido. En la bandeja, la columna `1fr` seguía midiendo 333px dentro de
+     una caja de 216px y los mensajes quedaban cortados a la derecha. */
+  .inbox-grid, .inbox-list, .inbox-chat { min-width: 0; }
+  .inbox-grid > *, .inbox-list > *, .inbox-chat > * { min-width: 0; }
+  .inbox-item, .inbox-thread { min-width: 0; }
+  .inbox-item *, .inbox-thread * { min-width: 0; overflow-wrap: anywhere; }
+}
+
+/* ---------- Móvil en horizontal ----------
+   Con 375-430px de alto el hero medía ~1180px: el titular quedaba cortado y
+   los botones caían muy por debajo del pliegue. Se compacta la tipografía y
+   los espacios para que la propuesta y al menos un CTA entren en pantalla. */
+@media (max-width: 950px) and (max-height: 500px) and (orientation: landscape) {
+  .hero { padding-top: 62px; padding-bottom: 20px; }
+  .hero-inner { gap: 14px; }
+  .hero h1 { font-size: clamp(20px, 4.2vw, 27px); line-height: 1.1; margin-bottom: 6px; }
+  .hero p.lead { font-size: 13.5px; line-height: 1.4; margin-bottom: 8px; }
+  /* El distintivo superior es lo primero que sobra cuando el alto es crítico. */
+  .hero-badge { display: none; }
+  .hero-actions { margin-top: 10px; gap: 8px; }
+  .hero-actions .btn { padding-top: 10px; padding-bottom: 10px; font-size: 13.5px; }
+  /* Las cifras van después de los botones: se ocultan para no empujar el CTA. */
+  .hero-stats { display: none; }
+  /* El bloque visual de tarjetas duplica espacio vertical que aquí no sobra. */
+  .hero-visual { display: none; }
+  .hero-scroll-cue { display: none; }
+}
+
+/* Áreas táctiles que quedaban por debajo del mínimo cómodo (44px) en cualquier
+   pantalla táctil: la hamburguesa (38x32), los iconos sociales del pie (38px)
+   y los enlaces de navegación del pie y del panel móvil (16-22px de alto). */
+@media (max-width: 860px) {
+  .hamburger { min-width: 44px; min-height: 44px; display: inline-flex;
+               flex-direction: column; align-items: center; justify-content: center; gap: 5px; }
+  .footer-social a { min-width: 44px; min-height: 44px; display: inline-flex;
+                     align-items: center; justify-content: center; }
+  .fcol a, .mobile-panel .mnav { display: block; padding-top: 11px; padding-bottom: 11px; }
+  footer .fcol h4 { margin-bottom: 8px; }
 }
 
 /* prefers-reduced-motion: la lógica de apagado real vive en JS (rutas simplificadas

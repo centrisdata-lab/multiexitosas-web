@@ -1069,6 +1069,11 @@
     const { liviano } = condiciones();
     if (liviano) return;
 
+    // El desplazamiento inicial saca las tarjetas de los bordes del contenedor
+    // y, sin recorte, eso ensancha el documento entero: aparecía scroll
+    // horizontal en toda la página mientras la sección estuviera sin animar.
+    grid.style.overflow = "hidden";
+
     cards.forEach((c, i) => {
       const dx = (i % 2 === 0 ? -1 : 1) * (30 + (i * 7) % 40);
       const dy = (i % 3 === 0 ? -1 : 1) * (24 + (i * 5) % 30);
@@ -1076,7 +1081,8 @@
     });
     gsap.to(cards, {
       x: 0, y: 0, opacity: 1, duration: 0.9, stagger: 0.08, ease: "power2.out",
-      scrollTrigger: { trigger: grid, start: "top 78%", toggleActions: "play none none reverse" }
+      scrollTrigger: { trigger: grid, start: "top 78%", toggleActions: "play none none reverse" },
+      onComplete: () => { grid.style.overflow = ""; }
     });
   }
 
